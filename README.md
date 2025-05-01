@@ -6,7 +6,7 @@ Neovim用のシンプルなプラグインで、画像や動画ファイルを�
 
 - ファイルをドラッグ＆ドロップで挿入
 - GitルートやCWDに保存先を動的に設定可能
-- リネーム・保存形式を自由にカスタマイズ
+- リネーム形式を「パターン文字列」で簡単に指定可能
 - Markdown, HTML形式のリンクを自動で生成（拡張子ごとに自動切替）
 
 ## 🔧 インストール
@@ -15,39 +15,50 @@ Lazy.nvim の場合：
 
 ```lua
 {
-  "sika7/dropmd.nvim",
+  "yourname/dropmd.nvim",
   config = function()
     require("dropmd").setup({
       workspace_dir = function()
         local git_root = vim.fn.systemlist("git rev-parse --show-toplevel")[1]
         return (git_root ~= "") and (git_root .. "/assets") or (vim.fn.getcwd() .. "/assets")
       end,
-      filetypes = { "markdown" }, -- 対象のfiletypeを指定
+      filetypes = { "markdown" },
+      rename_pattern = "drop-%Y%m%d-%H%M%S.%e", -- 拡張子付きでリネーム
     })
   end,
 }
 ```
 
-## 💡 デフォルトの出力形式（拡張子別）
+## 📁 `rename_pattern` オプション
 
-| 拡張子      | 出力形式                              |
+| プレースホルダ  | 説明                         |
+| --------------- | ---------------------------- |
+| `%Y%m%d-%H%M%S` | 日付と時刻（`os.date` 形式） |
+| `%e`            | 拡張子（例: png, mp4）       |
+| `%f`            | 元ファイル名（拡張子なし）   |
+
+例:
+
+- `"image-%Y%m%d-%H%M%S.%e"` → `image-20250501-171234.png`
+- `"media/%f-%H%M.%e"` → `media/photo-1712.jpg`
+
+## 💡 拡張子ごとの自動出力形式（デフォルト）
+
+| 拡張子      | 出力                                  |
 | ----------- | ------------------------------------- |
-| .png, .jpg  | `![ファイル名](パス)`                 |
-| .mp4, .webm | `<video src="パス" controls></video>` |
-| .mp3, .wav  | `<audio src="パス" controls></audio>` |
-| .pdf        | `[ファイル名](パス)`                  |
-| その他      | `![ファイル名](パス)`                 |
+| .png, .jpg  | `![name](path)`                       |
+| .mp4, .webm | `<video src="path" controls></video>` |
+| .mp3, .wav  | `<audio src="path" controls></audio>` |
+| .pdf        | `[name](path)`                        |
+| その他      | `![name](path)`                       |
 
-## ⚠️ 注意
+## 🔒 仕様と安全性
 
-- Neovim 0.9以上が必要です（`DropPre` イベント使用のため）
-- 他の `DropPre` と併用する際は競合回避の設計をしていますが、完全な排他制御はできません
+- ファイルタイプに応じた制限（markdownなど）を設定可能
+- `DropPre` は独自 `augroup` を用いて他と干渉しにくい
+- リネーム時に拡張子は元ファイルと一致するので安全
 
 ---
 
 このプラグインは、Markdownでの執筆やメディア整理を支援するためのミニマルなツールです。
-
-## 📄 ライセンス
-
-MIT License
 
