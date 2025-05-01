@@ -19,17 +19,54 @@ Lazy.nvim の場合：
   config = function()
     require("dropmd").setup({
       root_dir = function()
+        -- workspace_root = vim.fn.getcwd or git_root
+        -- ワークスペースのルートディレクトリ
+        -- gitやvim.fn.getcwdでパスが出ない場合はここでカスタムして
         return require("dropmd").get_workspace_root()
-      end, -- workspace_root = vim.fn.getcwd or git_root
-      assets_dir = function()
-        -- vim.fn.expand("~/my-assets")
-        return require("dropmd").get_workspace_root() .. "/assets" -- デフォルトはワークスペースのアセットを使う
       end,
+      assets_dir = function()
+        -- アセットを保存するディレクトリ
+
+        -- ホームディレクトリを設定する例
+        -- vim.fn.expand("~/my-assets")
+
+        -- デフォルトはワークスペースのアセットを使う
+        return require("dropmd").get_workspace_root() .. "/assets"
+      end,
+      path_formatter = function(abs_path, root_dir)
+        local rel = abs_path:gsub("^" .. vim.pesc(root_dir), "")
+        return "/" .. rel:gsub("^/", "")
+      end, -- path_formatter でマークダウンにいれるパスを変更できる デフォルトはワークスペースを基準に絶対パス
       filetypes = { "markdown" },
       rename_pattern = "drop-%Y%m%d-%H%M%S.%e", -- 拡張子付きでリネーム
     })
   end,
 }
+```
+
+ワークスペースごとに設定する例
+[workspace-config.nvim](https://github.com/sika7/workspace-config.nvim)
+
+```lua
+-- .config/nvim/init.lua
+require("lazy").setup({
+  -- ワークスペースのlua設定ファイルを読むプラグイン
+  'sika7/workspace-config.nvim',
+
+  -- 画像をコピペでインサートできるようにするプラグイン
+  "sika7/dropmd.nvim",
+  -- ワークスペースで初期化するためconfigは設定しなくていい
+})
+
+-- your_project/.nvim/workspace.lua
+require("dropmd").setup({
+  assets_dir = function()
+    -- デフォルトはワークスペースのアセットを使う
+    return require("dropmd").get_workspace_root() .. "/images"
+  end,
+  filetypes = { "markdown" },
+  rename_pattern = "img-%Y%m%d-%H%M%S.%e",       -- 拡張子付きでリネーム
+})
 ```
 
 ## 📁 `rename_pattern` オプション

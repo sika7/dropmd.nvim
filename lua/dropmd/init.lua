@@ -15,6 +15,7 @@ M.opts = {
   assets_dir = function()
     return get_workspace_root() .. "/assets"
   end,
+  path_formatter = nil,
   rename_pattern = "asset-%Y%m%d-%H%M%S.%e",
   rename_fn = nil,
   filetypes = { "markdown" },
@@ -64,9 +65,14 @@ local function handle_file_insert(path)
   local root_dir = M.opts.root_dir()
 
   local abs_path = vim.fn.fnamemodify(path, ":p")
-  local rel_path = abs_path:gsub("^" .. vim.pesc(root_dir), "")
-  if not rel_path:match("^/") then
-    rel_path = "/" .. rel_path
+  local rel_path
+  if M.opts.path_formatter then
+    rel_path = M.opts.path_formatter(abs_path, root_dir)
+  else
+    rel_path = abs_path:gsub("^" .. vim.pesc(root_dir), "")
+    if not rel_path:match("^/") then
+      rel_path = "/" .. rel_path
+    end
   end
 
   local markdown = M.opts.formatter_fn(filename, dst_path, rel_path)
