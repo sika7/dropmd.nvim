@@ -33,8 +33,10 @@ Lazy.nvim の場合：
         -- デフォルトはワークスペースのアセットを使う
         return require("dropmd").get_workspace_root() .. "/assets"
       end,
-      path_formatter = function(abs_path, root_dir)
-        local rel = abs_path:gsub("^" .. vim.pesc(root_dir), "")
+      path_formatter = function(dst_path, root_dir)
+        -- スラッシュを揃えて安全に Git ルートを除去し、先頭に / を付ける
+        git_root = git_root:gsub("/$", "") .. "/"
+        local rel = abs_path:gsub("^" .. vim.pesc(git_root), "")
         return "/" .. rel:gsub("^/", "")
       end, -- path_formatter でマークダウンにいれるパスを変更できる デフォルトはワークスペースを基準に絶対パス
       filetypes = { "markdown" },

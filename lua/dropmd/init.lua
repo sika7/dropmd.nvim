@@ -64,15 +64,14 @@ local function handle_file_insert(path)
 
   local root_dir = M.opts.root_dir()
 
-  local abs_path = vim.fn.fnamemodify(path, ":p")
   local rel_path
   if M.opts.path_formatter then
-    rel_path = M.opts.path_formatter(abs_path, root_dir)
+    rel_path = M.opts.path_formatter(dst_path, root_dir)
   else
-    rel_path = abs_path:gsub("^" .. vim.pesc(root_dir), "")
-    if not rel_path:match("^/") then
-      rel_path = "/" .. rel_path
-    end
+    -- スラッシュを揃えて安全に Git ルートを除去し、先頭に / を付ける
+    root_dir = root_dir:gsub("/$", "") .. "/"
+    local rel = dst_path:gsub("^" .. vim.pesc(root_dir), "")
+    rel_path = "/" .. rel:gsub("^/", "")
   end
 
   local markdown = M.opts.formatter_fn(filename, dst_path, rel_path)
