@@ -1,7 +1,20 @@
 local M = {}
 
+local function get_workspace_root()
+  local git_root = vim.fn.systemlist("git rev-parse --show-toplevel")[1]
+  if git_root == "" then
+    return vim.fn.getcwd()
+  end
+  return git_root
+end
+
 M.opts = {
-  workspace_dir = vim.fn.expand("~/my-assets"),
+  root_dir = function()
+    return get_workspace_root()
+  end,
+  assets_dir = function()
+    return get_workspace_root() .. "/assets"
+  end,
   rename_pattern = "asset-%Y%m%d-%H%M%S.%e",
   rename_fn = nil,
   filetypes = { "markdown" },
@@ -9,16 +22,16 @@ M.opts = {
 }
 
 -- Default formatter
-local function default_formatter(filename, path)
+local function default_formatter(filename, path, rel_path)
   local ext = vim.fn.fnamemodify(path, ":e")
   if ext == "mp4" or ext == "webm" then
-    return string.format('<video src="%s" controls></video>', path)
+    return string.format('<video src="%s" controls></video>', rel_path)
   elseif ext == "mp3" or ext == "wav" then
-    return string.format('<audio src="%s" controls></audio>', path)
+    return string.format('<audio src="%s" controls></audio>', rel_path)
   elseif ext == "pdf" then
-    return string.format('[%s](%s)', filename, path)
+    return string.format('[%s](%s)', filename, rel_path)
   else
-    return string.format('![%s](%s)', filename, path)
+    return string.format('![%s](%s)', filename, rel_path)
   end
 end
 
@@ -35,12 +48,12 @@ end
 -- Shared insert logic
 local function handle_file_insert(path)
   local filename = M.opts.rename_fn(path)
-  local workspace = type(M.opts.workspace_dir) == "function"
-      and M.opts.workspace_dir()
-      or M.opts.workspace_dir
+  local assets_dir = type(M.opts.assets_dir) == "function"
+      and M.opts.assets_dir()
+      or M.opts.assets_dir
 
-  vim.fn.mkdir(workspace, "p")
-  local dst_path = workspace .. "/" .. filename
+  vim.fn.mkdir(assets_dir, "p")
+  local dst_path = assets_dir .. "/" .. filename
   -- Copy the file
   local ok = vim.loop.fs_copyfile(path, dst_path)
   if not ok then
@@ -48,7 +61,15 @@ local function handle_file_insert(path)
     return
   end
 
-  local markdown = M.opts.formatter_fn(filename, dst_path)
+  local root_dir = M.opts.root_dir()
+
+  local abs_path = vim.fn.fnamemodify(path, ":p")
+  local rel_path = abs_path:gsub("^" .. vim.pesc(root_dir), "")
+  if not rel_path:match("^/") then
+    rel_path = "/" .. rel_path
+  end
+
+  local markdown = M.opts.formatter_fn(filename, dst_path, rel_path)
   vim.api.nvim_put({ markdown }, 'c', true, true)
 end
 
@@ -117,6 +138,10 @@ function M.setup(opts)
       return true
     end
   end
+end
+
+function M.get_workspace_root()
+  return get_workspace_root()
 end
 
 return M
