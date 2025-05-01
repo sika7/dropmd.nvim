@@ -8,6 +8,13 @@ local function get_workspace_root()
   return git_root
 end
 
+-- Improved string escaping for pattern matching
+local function escape_pattern(s)
+  -- Escape all magic characters: ( ) . % + - * ? [ ^ $
+  local escaped = string.gsub(s, "[%(%)%.%%%+%-%*%?%[%^%$%]]", "%%%1")
+  return escaped
+end
+
 M.opts = {
   root_dir = function()
     return get_workspace_root()
@@ -46,19 +53,54 @@ local function pattern_to_fn(pattern)
   end
 end
 
+-- Safe file copy using Neovim/Lua API for cross-platform compatibility
+local function safe_copy_file(src, dst)
+  -- Normalize paths
+  src = vim.fn.expand(src)
+  dst = vim.fn.expand(dst)
+
+  -- Read source file
+  local src_file = io.open(src, "rb")
+  if not src_file then
+    vim.notify("Failed to open source file: " .. src, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Read contents
+  local content = src_file:read("*all")
+  src_file:close()
+
+  -- Write to destination
+  local dst_file = io.open(dst, "wb")
+  if not dst_file then
+    vim.notify("Failed to open destination file: " .. dst, vim.log.levels.ERROR)
+    return false
+  end
+
+  -- Write contents and close
+  dst_file:write(content)
+  dst_file:close()
+
+  return true
+end
+
 -- Shared insert logic
 local function handle_file_insert(path)
-  local filename = M.opts.rename_fn(path)
+  -- Normalize path by removing escape sequences
+  local normalized_path = path:gsub("\\%s", " ")
+
+  local filename = M.opts.rename_fn(normalized_path)
   local assets_dir = type(M.opts.assets_dir) == "function"
       and M.opts.assets_dir()
       or M.opts.assets_dir
 
   vim.fn.mkdir(assets_dir, "p")
   local dst_path = assets_dir .. "/" .. filename
-  -- Copy the file
-  local ok = vim.loop.fs_copyfile(path, dst_path)
+
+  -- Copy the file using our safe copy function
+  local ok = safe_copy_file(normalized_path, dst_path)
   if not ok then
-    vim.notify("Failed to copy image", vim.log.levels.ERROR)
+    vim.notify("Failed to copy file: " .. normalized_path, vim.log.levels.ERROR)
     return
   end
 
@@ -68,9 +110,10 @@ local function handle_file_insert(path)
   if M.opts.path_formatter then
     rel_path = M.opts.path_formatter(dst_path, root_dir)
   else
-    -- スラッシュを揃えて安全に Git ルートを除去し、先頭に / を付ける
+    -- Use proper path escaping for pattern matching
     root_dir = root_dir:gsub("/$", "") .. "/"
-    local rel = dst_path:gsub("^" .. vim.pesc(root_dir), "")
+    local escaped_root = escape_pattern(root_dir)
+    local rel = dst_path:gsub("^" .. escaped_root, "")
     rel_path = "/" .. rel:gsub("^/", "")
   end
 
@@ -127,12 +170,18 @@ function M.setup(opts)
       -- ファイルが存在しファイルパスっぽいかチェック
       local raw_path = lines[1]
       local path = raw_path:gsub("%s+$", "") -- 行末の空白・改行などを削除
-      if not (path:match("^/.+%..+$") and vim.fn.filereadable(path) == 1) then
+
+      -- ファイルパスの検出を改善し、スペースや非ASCII文字を処理できるようにしました
+      -- まずパスをアンエスケープします（'\' を ' ' に変換します）
+      path = path:gsub("\\%s", " ")
+
+      -- Check if the file is readable
+      if vim.fn.filereadable(path) ~= 1 then
         return original_paste(lines, phase)
       end
 
-      -- 拡張子が設定されているパターンかチェック
-      local ext = vim.fn.fnamemodify(path, ":e")
+      -- Get the extension to check if it's a supported file type
+      local ext = vim.fn.fnamemodify(path, ":e"):lower()
       if not (ext:match("png") or ext:match("jpe?g") or ext:match("gif")
             or ext:match("webm") or ext:match("mp4") or ext:match("pdf")) then
         return original_paste(lines, phase)
