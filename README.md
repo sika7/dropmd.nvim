@@ -15,7 +15,7 @@ Lazy.nvim の場合：
 
 ```lua
 {
-  "yourname/dropmd.nvim",
+  "sika7/dropmd.nvim",
   config = function()
     require("dropmd").setup({
       workspace_dir = function()
