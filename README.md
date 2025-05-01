@@ -18,9 +18,12 @@ Lazy.nvim の場合：
   "sika7/dropmd.nvim",
   config = function()
     require("dropmd").setup({
-      workspace_dir = function()
-        local git_root = vim.fn.systemlist("git rev-parse --show-toplevel")[1]
-        return (git_root ~= "") and (git_root .. "/assets") or (vim.fn.getcwd() .. "/assets")
+      root_dir = function()
+        return require("dropmd").get_workspace_root()
+      end, -- workspace_root = vim.fn.getcwd or git_root
+      assets_dir = function()
+        -- vim.fn.expand("~/my-assets")
+        return require("dropmd").get_workspace_root() .. "/assets" -- デフォルトはワークスペースのアセットを使う
       end,
       filetypes = { "markdown" },
       rename_pattern = "drop-%Y%m%d-%H%M%S.%e", -- 拡張子付きでリネーム
@@ -61,4 +64,3 @@ Lazy.nvim の場合：
 ---
 
 このプラグインは、Markdownでの執筆やメディア整理を支援するためのミニマルなツールです。
-
