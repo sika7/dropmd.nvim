@@ -46,10 +46,20 @@ end
 -- Convert rename pattern to function
 local function pattern_to_fn(pattern)
   return function(orig_path)
+    -- オリジナルから拡張子を取得
     local ext = vim.fn.fnamemodify(orig_path, ":e")
-    local base = vim.fn.fnamemodify(orig_path, ":t:r")
-    local formatted = os.date(pattern:gsub("%%e", "___EXT___"):gsub("%%f", "___BASE___"))
-    return formatted:gsub("___EXT___", ext):gsub("___BASE___", base)
+
+    -- オリジナルからファイルを取得
+    local filename = vim.fn.fnamemodify(orig_path, ":t:r")
+
+    -- ファイルの変更時刻を取得し、それをフォーマットする
+    local mtime = vim.fn.getftime(orig_path)
+
+    -- 日付のパターンのみに変更
+    local date_pattern = pattern:gsub("%%e", "___EXT___"):gsub("%%f", "___FILENAME___")
+
+    local formatted = os.date(date_pattern, mtime)
+    return formatted:gsub("___EXT___", ext):gsub("___FILENAME___", filename)
   end
 end
 
